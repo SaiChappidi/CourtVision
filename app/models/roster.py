@@ -38,18 +38,43 @@ class PlayerProfile(BaseModel):
 
     @property
     def overall_rating(self) -> float:
-        """Composite player rating on a 0-100 scale."""
-        base = (
-            self.points_per_game * 0.35
-            + self.rebounds_per_game * 0.15
-            + self.assists_per_game * 0.20
-            + self.steals_per_game * 2.0
-            + self.blocks_per_game * 2.0
-            + self.plus_minus * 0.5
-            + self.win_shares * 3.0
+        """Composite player rating on a ~30-99 scale.
+
+        Calibrated so that superstars land in the low-to-mid 90s, quality
+        starters in the 75-85 range, rotation players in the low 60s, and
+        deep-bench players in the low 50s.
+        """
+        # Box-score production index (per game), weighting playmaking and
+        # defensive events like a simplified game score.
+        box_production = (
+            self.points_per_game * 1.00
+            + self.rebounds_per_game * 1.20
+            + self.assists_per_game * 1.50
+            + self.steals_per_game * 3.00
+            + self.blocks_per_game * 3.00
         )
-        efficiency_bonus = (self.field_goal_pct - 0.42) * 20 + (self.three_point_pct - 0.35) * 10
-        return max(0.0, min(100.0, base + efficiency_bonus + 30))
+
+        # On/off impact: per-game plus/minus captures team context and the
+        # defensive value box scores miss, and cleanly separates contributors
+        # on good teams from volume players on bad ones. Bounded to avoid
+        # letting a single blowout-heavy season dominate.
+        impact = max(-9.0, min(11.0, self.plus_minus)) * 1.6
+
+        # Shooting efficiency, bounded so it nudges rather than dominates.
+        efficiency = (
+            (self.field_goal_pct - 0.46) * 30
+            + (self.three_point_pct - 0.35) * 8
+            + (self.free_throw_pct - 0.75) * 4
+        )
+        efficiency = max(-6.0, min(8.0, efficiency))
+
+        # Players with essentially no measured production (missing data or
+        # end-of-bench) shouldn't be penalised by the shooting term.
+        if box_production < 3.0:
+            efficiency = 0.0
+
+        rating = 40.0 + 0.78 * box_production + impact + efficiency
+        return max(25.0, min(99.0, rating))
 
 
 class MinuteAllocation(BaseModel):

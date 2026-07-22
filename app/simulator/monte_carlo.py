@@ -20,6 +20,15 @@ logger = logging.getLogger(__name__)
 PLAYOFF_WIN_THRESHOLD = 42.0
 PLAY_IN_WIN_THRESHOLD = 38.0
 
+# Win-probability calibration. Team ratings are minute-weighted averages of
+# player ratings and, in practice, cluster roughly between the high-50s (a
+# tanking roster) and the low-70s (a championship contender). We map that
+# spread onto realistic season win rates with a logistic curve.
+LEAGUE_AVG_RATING = 63.0   # a .500 team sits here
+RATING_SCALE = 4.2         # rating points per logistic unit (smaller = steeper)
+MIN_WIN_PROB = 0.16        # ~13 win floor over 82 games
+MAX_WIN_PROB = 0.85        # ~70 win ceiling over 82 games
+
 
 class MonteCarloSimulator:
     """
@@ -30,9 +39,11 @@ class MonteCarloSimulator:
     def __init__(self, iterations: int | None = None):
         self.iterations = iterations or settings.monte_carlo_iterations
 
-    def _win_probability(self, team_rating: float, opponent_rating: float) -> float:
-        rating_diff = team_rating - opponent_rating
-        return 1.0 / (1.0 + 10 ** (-rating_diff / 15.0))
+    def _win_probability(self, team_rating: float, baseline: float = LEAGUE_AVG_RATING) -> float:
+        """Logistic map from team rating to per-game win probability."""
+        rating_diff = team_rating - baseline
+        prob = 1.0 / (1.0 + np.exp(-rating_diff / RATING_SCALE))
+        return float(np.clip(prob, MIN_WIN_PROB, MAX_WIN_PROB))
 
     def _simulate_season(
         self,
@@ -41,9 +52,13 @@ class MonteCarloSimulator:
         season_games: int,
         rng: np.random.Generator,
     ) -> int:
-        win_prob = self._win_probability(team_rating, opponent_strength)
-        noise = rng.normal(0, 0.03)
-        adjusted_prob = np.clip(win_prob + noise, 0.15, 0.85)
+        # opponent_strength lets callers shift the league baseline (schedule
+        # strength); default keeps the standard .500 anchor.
+        baseline = opponent_strength if opponent_strength else LEAGUE_AVG_RATING
+        win_prob = self._win_probability(team_rating, baseline)
+        # Season-to-season variance (injuries, chemistry, variance in form).
+        noise = rng.normal(0, 0.025)
+        adjusted_prob = float(np.clip(win_prob + noise, MIN_WIN_PROB, MAX_WIN_PROB))
         wins = int(rng.binomial(season_games, adjusted_prob))
         return wins
 

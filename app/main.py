@@ -2,9 +2,12 @@
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app import __version__
 from app.api.routes import agent, nba, roster, simulation
@@ -47,9 +50,11 @@ app.include_router(roster.router, prefix="/api/v1")
 app.include_router(simulation.router, prefix="/api/v1")
 app.include_router(agent.router, prefix="/api/v1")
 
+STATIC_DIR = Path(__file__).parent / "static"
 
-@app.get("/")
-async def root():
+
+@app.get("/api")
+async def api_info():
     return {
         "name": "CourtVision",
         "version": __version__,
@@ -67,3 +72,12 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy", "version": __version__}
+
+
+# Serve the frontend (static SPA) at the root
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/")
+async def frontend():
+    return FileResponse(STATIC_DIR / "index.html")

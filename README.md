@@ -60,7 +60,17 @@ uvicorn app.main:app --reload --port 8000
 docker compose up --build
 ```
 
+**Web UI** available at [http://localhost:8000](http://localhost:8000)
 API docs available at [http://localhost:8000/docs](http://localhost:8000/docs)
+
+## Web Frontend
+
+CourtVision ships with a built-in single-page web app (served by FastAPI, no build step). Open [http://localhost:8000](http://localhost:8000) after starting the server. It has four sections:
+
+- **Simulate Season** — pick a team, run the Monte Carlo engine, and view projected record, playoff odds, team rating, and an interactive win-distribution chart
+- **Roster & Minutes** — edit minute allocations inline (live 240-minute total check) and re-simulate with one click
+- **GM Agent** — chat with the LLM agent in plain English (falls back to the simulation engine if the LLM is rate-limited)
+- **NBA Data** — browse live rosters and search players through the gateway
 
 ## API Endpoints
 

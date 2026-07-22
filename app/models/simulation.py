@@ -32,7 +32,10 @@ class SimulationRequest(BaseModel):
     team_abbreviation: str
     iterations: int = Field(default=1000, ge=100, le=10000)
     season_games: int = Field(default=82, ge=1, le=82)
-    opponent_strength: float = Field(default=50.0, ge=0, le=100)
+    opponent_strength: float = Field(
+        default=0.0, ge=0, le=100,
+        description="League baseline rating for schedule strength. 0 = use default (.500 anchor).",
+    )
 
 
 class SimulationResult(BaseModel):
