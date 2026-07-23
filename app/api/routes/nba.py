@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from app.config import settings
 from app.gateway.proxy import nba_proxy
@@ -44,3 +44,16 @@ async def get_team_stats(season: str = Query(default=DEFAULT_SEASON)) -> dict[st
 async def search_player(player_name: str) -> list[dict[str, Any]]:
     from app.gateway.nba_client import nba_client
     return await nba_client.search_player(player_name)
+
+
+@router.get("/player/{player_id}")
+async def get_player_preview(
+    player_id: int,
+    season: str = Query(default=DEFAULT_SEASON),
+) -> dict[str, Any]:
+    from app.services.roster_service import roster_service
+
+    preview = await roster_service.get_player_preview(player_id, season)
+    if not preview:
+        raise HTTPException(status_code=404, detail=f"Player {player_id} not found")
+    return preview

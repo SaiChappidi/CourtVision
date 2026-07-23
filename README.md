@@ -67,8 +67,10 @@ API docs available at [http://localhost:8000/docs](http://localhost:8000/docs)
 
 CourtVision ships with a built-in single-page web app (served by FastAPI, no build step). Open [http://localhost:8000](http://localhost:8000) after starting the server. It has four sections:
 
-- **Simulate Season** — pick a team, run the Monte Carlo engine, and view projected record, playoff odds, team rating, and an interactive win-distribution chart
-- **Roster & Minutes** — edit minute allocations inline (live 240-minute total check) and re-simulate with one click
+- **Simulate Season** — pick a team and season, run the Monte Carlo engine, view projected record, playoff path (Round 1 → title), team rating, and win-distribution chart
+- **Roster & Minutes** — edit minute allocations inline with live before/after comparison vs the original roster
+- **Trade Desk** — swap players in a what-if trade, instantly see projected wins and playoff impact
+- **Team Compare** — head-to-head simulation of any two franchises
 - **GM Agent** — chat with the LLM agent in plain English (falls back to the simulation engine if the LLM is rate-limited)
 - **NBA Data** — browse live rosters and search players through the gateway
 
@@ -83,13 +85,17 @@ CourtVision ships with a built-in single-page web app (served by FastAPI, no bui
 | GET | `/standings` | League standings |
 | GET | `/player-stats` | League-wide player stats |
 | GET | `/search/{name}` | Search players by name |
+| GET | `/player/{player_id}` | Player preview with rating |
 
 ### Roster Management (`/api/v1/roster`)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/{team_abbr}` | Get roster chart with minute allocations |
+| GET | `/{team_abbr}` | Get roster chart with minute allocations (`?season=` `?reload=`) |
 | PUT | `/{team_abbr}` | Update minute allocations |
+| POST | `/{team_abbr}/trade` | Apply a what-if trade and compare to baseline |
+| POST | `/{team_abbr}/reset` | Reset roster to original baseline |
+| GET | `/{team_abbr}/compare-baseline` | Simulate baseline vs current side-by-side |
 | GET | `/{team_abbr}/rating` | Get computed team rating |
 
 ### Simulation (`/api/v1/simulate`)
@@ -97,7 +103,8 @@ CourtVision ships with a built-in single-page web app (served by FastAPI, no bui
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/season` | Run Monte Carlo simulation |
-| GET | `/season/{team_abbr}` | Quick simulation (1000 iterations) |
+| GET | `/season/{team_abbr}` | Quick simulation (`?season=` `?iterations=`) |
+| POST | `/compare` | Head-to-head team comparison |
 
 ### GM Agent (`/api/v1/agent`)
 

@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator
 
 
 class Position(str, Enum):
@@ -36,6 +36,7 @@ class PlayerProfile(BaseModel):
     def net_rating(self) -> float:
         return self.offensive_rating - self.defensive_rating
 
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def overall_rating(self) -> float:
         """Composite player rating on a ~30-99 scale.
@@ -113,6 +114,12 @@ class RosterChart(BaseModel):
                 weighted += player.overall_rating * alloc.minutes
                 total_mins += alloc.minutes
         return weighted / total_mins if total_mins > 0 else 50.0
+
+
+class TradeRequest(BaseModel):
+    remove_player_ids: list[int] = Field(default_factory=list)
+    add_player_ids: list[int] = Field(default_factory=list)
+    notes: str = ""
 
 
 class RosterUpdatePayload(BaseModel):

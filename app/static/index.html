@@ -30,6 +30,14 @@
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
         <span>Roster</span>
       </button>
+      <button class="nav-item" data-view="trade">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+        <span>Trade Desk</span>
+      </button>
+      <button class="nav-item" data-view="compare">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v18M16 3v18M3 8h5M3 16h5M16 8h5M16 16h5"/></svg>
+        <span>Compare</span>
+      </button>
       <button class="nav-item" data-view="agent">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/><path d="M9 10h.01M13 10h.01M17 10h.01"/></svg>
         <span>GM Agent</span>
@@ -62,12 +70,21 @@
       </div>
       <div class="topbar-right">
         <div class="team-picker">
+          <span class="team-picker-label">Season</span>
+          <select id="seasonSelect" aria-label="Select season">
+            <option value="2024-25">2024-25</option>
+            <option value="2025-26">2025-26</option>
+          </select>
+        </div>
+        <div class="team-picker">
           <span class="team-picker-label">Front office</span>
           <select id="teamSelect" aria-label="Select team"></select>
         </div>
         <span class="season-badge" id="seasonBadge">Season —</span>
       </div>
     </header>
+
+    <div class="error-banner hidden" id="errorBanner" role="alert"></div>
 
     <!-- ============ SIMULATE VIEW ============ -->
     <section class="view active" id="view-simulate">
@@ -119,6 +136,17 @@
             <span class="stat-value" id="statRange">—</span>
             <span class="stat-sub">10th–90th percentile</span>
           </div>
+        </div>
+
+        <!-- Playoff path -->
+        <div class="panel playoff-panel">
+          <div class="panel-head">
+            <div>
+              <h3>Playoff path</h3>
+              <span class="muted small">Best-of-7 model from team rating</span>
+            </div>
+          </div>
+          <div class="bracket-bars" id="playoffBracket"></div>
         </div>
 
         <!-- Chart + analyst take side by side -->
@@ -182,9 +210,15 @@
         </div>
         <div class="sim-controls">
           <span class="minutes-total" id="minutesTotal">0 / 240 min</span>
-          <button class="btn ghost" id="reloadRosterBtn">Reset</button>
+          <button class="btn ghost" id="reloadRosterBtn">Reset roster</button>
           <button class="btn primary" id="saveRosterBtn">Save &amp; Simulate</button>
         </div>
+      </div>
+
+      <!-- Baseline comparison -->
+      <div class="panel compare-panel hidden" id="baselinePanel">
+        <div class="panel-head"><div><h3>Before vs after</h3><span class="muted small">Compared to the original loaded roster</span></div></div>
+        <div class="compare-grid" id="baselineCompare"></div>
       </div>
 
       <div class="panel">
@@ -204,6 +238,76 @@
         </div>
       </div>
       <div id="rosterMsg" class="inline-msg hidden"></div>
+    </section>
+
+    <!-- ============ TRADE VIEW ============ -->
+    <section class="view" id="view-trade">
+      <div class="view-head">
+        <div class="view-title">
+          <span class="eyebrow">What-if Builder</span>
+          <h2>Trade Desk</h2>
+          <p class="muted">Swap players, see the impact instantly. Pick who leaves, search who arrives, then simulate.</p>
+        </div>
+      </div>
+
+      <div class="trade-flow">
+        <div class="panel trade-step">
+          <div class="panel-head"><div><h3>1 · Outgoing</h3><span class="muted small">Players you're trading away</span></div></div>
+          <select id="tradeOutSelect" multiple size="8" aria-label="Players to trade away"></select>
+          <p class="muted small trade-hint">Hold Ctrl (Windows) or Cmd (Mac) to pick multiple.</p>
+        </div>
+
+        <div class="trade-arrow" aria-hidden="true">→</div>
+
+        <div class="panel trade-step">
+          <div class="panel-head"><div><h3>2 · Incoming</h3><span class="muted small">Search any active player</span></div></div>
+          <form class="search-row" id="tradeSearchForm">
+            <input type="text" id="tradeSearchInput" placeholder="e.g. Giannis Antetokounmpo" autocomplete="off" />
+            <button class="btn primary small" type="submit">Search</button>
+          </form>
+          <div class="trade-incoming-list" id="tradeIncomingList"></div>
+        </div>
+      </div>
+
+      <div class="panel trade-preview hidden" id="tradePreview">
+        <div class="panel-head"><div><h3>3 · Preview</h3></div>
+          <button class="btn primary" id="runTradeBtn">Apply trade &amp; simulate</button>
+        </div>
+        <div class="trade-preview-grid" id="tradePreviewGrid"></div>
+      </div>
+
+      <div class="panel hidden" id="tradeResults">
+        <div class="panel-head"><div><h3>Trade impact</h3></div></div>
+        <div class="compare-grid" id="tradeCompare"></div>
+      </div>
+    </section>
+
+    <!-- ============ COMPARE VIEW ============ -->
+    <section class="view" id="view-compare">
+      <div class="view-head">
+        <div class="view-title">
+          <span class="eyebrow">Head to head</span>
+          <h2>Team Compare</h2>
+          <p class="muted">Run both franchises through the simulator and see who projects better.</p>
+        </div>
+        <div class="sim-controls">
+          <select id="compareTeamB" aria-label="Second team"></select>
+          <button class="btn primary" id="runCompareBtn">Compare teams</button>
+        </div>
+      </div>
+
+      <div id="compareEmpty" class="empty-state">
+        <div class="empty-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v18M16 3v18"/></svg>
+        </div>
+        <h3>Pick a matchup</h3>
+        <p class="muted">Your front-office team is Team A. Choose Team B above and hit compare.</p>
+      </div>
+
+      <div id="compareResults" class="hidden">
+        <div class="compare-matchup" id="compareMatchup"></div>
+        <div class="compare-side-by-side" id="compareSideBySide"></div>
+      </div>
     </section>
 
     <!-- ============ AGENT VIEW ============ -->
